@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>出席確認カレンダー</title>
+<style>
+  :root{
+    --green:#2F4A3C; --cream:#F7F5EF; --line:#E4E0D2; --text:#33392F; --muted:#7A8271;
+    --rank1:#C0463A; --rank1-bg:#F6DEDB; --rank2:#3457A6; --rank2-bg:#DCE4F6; --rank3:#B8922E; --rank3-bg:#F5EBC9;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:"Hiragino Sans","Yu Gothic",system-ui,sans-serif;background:var(--cream);color:var(--text);}
+  header{background:var(--green);color:#F3EFE3;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+  header h1{font-size:16px;margin:0;letter-spacing:.05em;}
+  .header-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  select, button, input{font-family:inherit;font-size:14px;}
+  select{padding:7px 10px;border-radius:8px;border:1px solid #cfd8c8;background:#fff;}
+  button{cursor:pointer;border:none;border-radius:8px;padding:8px 12px;font-weight:600;}
+  .btn-admin{background:#E7D9B8;color:#4A3B12;}
+  .btn-primary{background:#2F4A3C;color:#fff;}
+  .btn-danger{background:#F6DEDB;color:var(--rank1);}
+  .btn-ghost{background:#EDEAE0;color:#4A5548;}
+  main{max-width:900px;margin:0 auto;padding:18px 14px 60px;}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
+  .admin-badge{font-size:12px;background:#DCE6D6;color:var(--green);padding:5px 10px;border-radius:999px;font-weight:600;}
+  table.cal{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;}
+  table.cal th{background:#EFEBDD;font-size:12px;color:var(--muted);padding:6px 0;font-weight:600;}
+  table.cal td{border:1px solid var(--line);vertical-align:top;height:88px;width:14.28%;padding:4px;font-size:11px;cursor:pointer;}
+  table.cal td.empty{background:#FBFAF6;cursor:default;}
+  table.cal td:hover:not(.empty){background:#F2F5EE;}
+  .daynum{font-weight:700;color:var(--muted);font-size:12px;}
+  .sessions{margin-top:3px;display:flex;flex-direction:column;gap:2px;}
+  .session-chip{display:flex;align-items:center;gap:3px;background:#EDEAE0;color:#4A5548;border-radius:5px;padding:1px 4px;line-height:1.5;}
+  .session-chip .chip-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;cursor:pointer;}
+  .session-chip .lock{font-size:9px;cursor:pointer;}
+  .session-chip .chip-del{flex:none;color:var(--rank1);font-size:10px;font-weight:700;cursor:pointer;padding:0 2px;}
+  .session-chip .chip-del:hover{background:var(--rank1-bg);border-radius:3px;}
+  .dot{width:6px;height:6px;border-radius:50%;flex:none;}
+  .dot.r1{background:var(--rank1);} .dot.r2{background:var(--rank2);} .dot.r3{background:var(--rank3);}
+  .rank-badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;}
+  .rank-badge.r1{background:var(--rank1-bg);color:var(--rank1);}
+  .rank-badge.r2{background:var(--rank2-bg);color:var(--rank2);}
+  .rank-badge.r3{background:var(--rank3-bg);color:var(--rank3);}
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.32);display:flex;align-items:center;justify-content:center;z-index:50;padding:14px;}
+  .modal{background:#fff;border-radius:14px;max-width:480px;width:100%;max-height:85vh;overflow-y:auto;padding:20px;}
+  .modal h2{margin:0 0 2px;font-size:16px;color:var(--green);}
+  .modal .sub{font-size:12px;color:var(--muted);margin-bottom:12px;}
+  .plist{list-style:none;margin:0;padding:0;}
+  .plist li{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid #F0EDE2;gap:8px;}
+  .plist .pname{display:flex;align-items:center;gap:8px;font-size:14px;}
+  .marks{display:flex;gap:6px;}
+  .mark-btn{padding:6px 10px;border-radius:8px;font-size:12px;border:1px solid #ddd;background:#fff;}
+  .mark-btn.present.active{background:#5B7A5B;color:#fff;border-color:#5B7A5B;}
+  .mark-btn.absent.active{background:#B5573F;color:#fff;border-color:#B5573F;}
+  .mark-btn:disabled{opacity:.4;cursor:not-allowed;}
+  .modal-actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px;}
+  .panel h3{margin:0 0 10px;font-size:14px;color:var(--green);}
+  .form-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center;}
+  .form-row input[type=text], .form-row input[type=number], .form-row input[type=time], .form-row input[type=date], .form-row select{padding:7px 9px;border:1px solid #D8DECF;border-radius:8px;flex:1;min-width:100px;}
+  .plain-list{border-top:1px solid #F0EDE2;}
+  .plain-list .row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #F0EDE2;flex-wrap:wrap;}
+  .plain-list .row .name{flex:1;min-width:100px;font-size:14px;}
+  .empty-note{text-align:center;padding:24px 10px;color:var(--muted);font-size:13px;}
+  .login-box{display:flex;gap:6px;align-items:center;}
+  .login-box input{width:90px;padding:6px 8px;border-radius:8px;border:1px solid #cfd8c8;}
+  .rate-hidden-note{font-size:12px;color:var(--muted);}
+  .totalbar{background:var(--green);color:#F3EFE3;border-radius:12px;padding:14px 16px;margin-bottom:14px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+  .totalbar .amt{font-size:22px;font-weight:800;}
+  .session-list-item{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #F0EDE2;gap:8px;}
+  .session-list-item .info{cursor:pointer;flex:1;}
+  .session-list-item .info:hover{color:var(--green);}
+  @media (max-width:520px){ table.cal td{height:70px;font-size:10px;} }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>出席確認カレンダー</h1>
+  <div class="header-right">
+    <select id="monthSelect"></select>
+    <span id="adminArea"></span>
+  </div>
+</header>
+
+<main>
+  <div class="toolbar" id="toolbar"></div>
+  <table class="cal">
+    <thead><tr id="calHead"></tr></thead>
+    <tbody id="calBody"></tbody>
+  </table>
+
+  <div id="adminPanels"></div>
+</main>
+
+<div id="modalRoot"></div>
+
+<script>
+/* ---------------- config ---------------- */
+const RANK_INFO = {
+  1: { label: "ランク1", color: "赤", cls: "r1" },
+  2: { label: "ランク2", color: "青", cls: "r2" },
+  3: { label: "ランク3", color: "黄", cls: "r3" },
+};
+const DOW = ["日","月","火","水","木","金","土"];
+const MONTHS = ["2026-07","2026-08","2026-09","2026-10","2026-11","2026-12"];
+
+// 基本の週次稽古パターン（8月以降の標準予定。必要に応じて管理者が追加・削除できます）
+const WEEKLY_TEMPLATE = [
+  { dow: 1, start: "19:00", label: "月曜夜稽古" },
+  { dow: 3, start: "14:00", label: "水曜昼稽古" },
+  { dow: 6, start: "14:00", label: "土曜昼稽古" },
+  { dow: 6, start: "19:00", label: "土曜夜稽古" },
+];
+// 特定週の日曜日（第n日曜日）の稽古
+const NTH_SUNDAY_TEMPLATE = [
+  { nth: 1, start: "13:30", label: "第一日曜稽古" },
+  { nth: 4, start: "10:00", label: "第四日曜稽古" },
+];
+
+/* ---------------- state ---------------- */
+let state = {
+  participants: [],
+  rankRates: { 1: 963, 2: 412, 3: 963 },
+  adminPin: "0000",
+  isAdmin: false,
+  month: MONTHS[0],
+  classes: [],                 // [{id,date,start,label}]
+  attendance: {},              // { classId: { participantId: 'present'|'absent' } }
+  confirmed: {},                // { classId: true }
+};
+
+/* ---------------- storage helpers (Googleスプレッドシート連携) ---------------- */
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzneQFIiNL1fUoH8GwjdiuomZ01Ml5vo16XfaTG5dR1xmTS-etbZAojgKFrC7o3ksg/exec";
+
+async function sGet(key){
+  try{
+    const res = await fetch(`${APPS_SCRIPT_URL}?action=get&key=${encodeURIComponent(key)}`);
+    const data = await res.json();
+    return data && data.value ? JSON.parse(data.value) : null;
+  }catch(e){ console.error("storage get failed", key, e); return null; }
+}
+async function sSet(key, value){
+  try{
+    await fetch(APPS_SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ key, value: JSON.stringify(value) })
+    });
+    return true;
+  }catch(e){ console.error("storage save failed", key, e); return false; }
+}
+function uid(){ return Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4); }
+function pad2(n){ return String(n).padStart(2,"0"); }
+function daysInMonth(y,m){ return new Date(y, m, 0).getDate(); } // m is 1-indexed here
+function dateKey(y,m,d){ return `${y}-${pad2(m)}-${pad2(d)}`; }
+
+// 名簿から取り込んだ既存会員（ふりがな付き。あいうえお順の並べ替えに使用します）
+const SEED_PARTICIPANTS = [
+  { name: "平林 ゆみ子", kana: "ヒラバヤシユミコ" }, { name: "佐橋 里佳", kana: "サハシリカ" }, { name: "佐藤 貴弘", kana: "サトウタカヒロ" }, { name: "日比 成興", kana: "ヒビシゲオキ" }, { name: "大橋 良夫", kana: "オオハシヨシオ" },
+  { name: "平松 三義", kana: "ヒラマツミヨシ" }, { name: "一戸 里子", kana: "イチノヘサトコ" }, { name: "鈴木 敦子", kana: "スズキアツコ" }, { name: "藤永 勝敬", kana: "フジナガカツノリ" }, { name: "池田 陽", kana: "イケダヨウ" }, { name: "柴田 佳奈", kana: "シバタカナ" }, { name: "礒部 恒昌", kana: "イソベノブヨシ" }, { name: "吉田 ひとみ", kana: "ヨシダヒトミ" }, { name: "藤原 信夫", kana: "フジワラノブオ" }, { name: "小川 瑠美", kana: "オガワルミ" },
+  { name: "兼松 幸範", kana: "カネマツユキノリ" }, { name: "小山 文榮", kana: "コヤマユキエ" }, { name: "尾関 一生", kana: "オゼキノブオ" }, { name: "後藤 まゆみ", kana: "ゴトウマユミ" }, { name: "宮田 悠生", kana: "ミヤタユウキ" }, { name: "今村 直樹", kana: "イマムラナオキ" }, { name: "反中 光子", kana: "タンナカミツコ" }, { name: "澤木 亮志", kana: "サワキリョウジ" }, { name: "清水 真理子", kana: "シミズマリコ" }, { name: "湯浅 佳代", kana: "ユアサカヨ" }, { name: "林 幸恵", kana: "ハヤシユキエ" }, { name: "柴田 名美", kana: "シバタナミ" }, { name: "石田 結梨奈", kana: "イシダユリナ" },
+  { name: "小本 典子", kana: "コモトノリコ" }, { name: "家田 典和", kana: "イエダノリカズ" }, { name: "相墨 一彦", kana: "アイズミカズヒコ" }, { name: "久保 二郎", kana: "クボジロウ" }, { name: "古谷 嘉", kana: "フルヤヨシミ" }, { name: "森 千弥", kana: "モリチヤ" }, { name: "坂井 宣博", kana: "サカイノブヒロ" }, { name: "野村 英紀", kana: "ノムラヒデノリ" }, { name: "平松 とも", kana: "ヒラマツトモ" }, { name: "岩井 和子", kana: "イワイカズコ" }, { name: "伊藤 秀樹", kana: "イトウヒデキ" }, { name: "不破 清乃", kana: "フワキヨノ" }, { name: "竹内 政彦", kana: "タケウチマサヒコ" }, { name: "岩田 尚久", kana: "イワタナオヒサ" }, { name: "滝 弘明", kana: "タキヒロアキ" }, { name: "渡邊 和貴", kana: "ワタナベカズタカ" }, { name: "竹内 幹子", kana: "タケウチミキコ" },
+  { name: "村瀬 昌宏", kana: "ムラセマサヒロ" }, { name: "佐久間 侑里", kana: "サクマユウリ" }, { name: "寺本 純子", kana: "テラモトジュンコ" },
+];
+const SEED_KANA_MAP = Object.fromEntries(SEED_PARTICIPANTS.map(p => [p.name, p.kana]));
+
+/* ---------------- sorting helper ---------------- */
+const kanaCollator = new Intl.Collator("ja", { sensitivity: "base" });
+function sortedParticipants(list){
+  return [...list].sort((a, b) => kanaCollator.compare(a.kana || a.name, b.kana || b.name));
+}
+
+/* ---------------- load ---------------- */
+async function loadGlobal(){
+  const p = await sGet("participants");
+  const r = await sGet("rankRates");
+  const pin = await sGet("adminPin");
+  if(p && p.length > 0){
+    let changed = false;
+    state.participants = p.map(person => {
+      if(!person.kana && SEED_KANA_MAP[person.name]){ changed = true; return { ...person, kana: SEED_KANA_MAP[person.name] }; }
+      return person;
+    });
+    if(changed) await sSet("participants", state.participants);
+  } else {
+    state.participants = SEED_PARTICIPANTS.map(({name, kana}) => ({ id: uid(), name, kana, rank: 1 }));
+    await sSet("participants", state.participants);
+  }
+  state.rankRates = r || state.rankRates;
+  state.adminPin = pin || state.adminPin;
+}
+async function loadMonth(mKey){
+  const c = await sGet("classes-"+mKey);
+  const a = await sGet("attendance-"+mKey);
+  const cf = await sGet("confirmed-"+mKey);
+  state.classes = c || [];
+  state.attendance = a || {};
+  state.confirmed = cf || {};
+}
+async function saveParticipants(){ await sSet("participants", state.participants); }
+async function saveRates(){ await sSet("rankRates", state.rankRates); }
+async function savePin(){ await sSet("adminPin", state.adminPin); }
+async function saveClasses(){ await sSet("classes-"+state.month, state.classes); }
+async function saveAttendance(){ await sSet("attendance-"+state.month, state.attendance); }
+async function saveConfirmed(){ await sSet("confirmed-"+state.month, state.confirmed); }
+
+/* ---------------- init ---------------- */
+async function init(){
+  const sel = document.getElementById("monthSelect");
+  MONTHS.forEach(m=>{
+    const [y,mo] = m.split("-");
+    const opt = document.createElement("option");
+    opt.value = m; opt.textContent = `${y}年${Number(mo)}月`;
+    sel.appendChild(opt);
+  });
+  sel.value = state.month;
+  sel.addEventListener("change", async ()=>{
+    state.month = sel.value;
+    await loadMonth(state.month);
+    renderAll();
+  });
+
+  await loadGlobal();
+  await loadMonth(state.month);
+  renderAll();
+}
+
+function renderAll(){
+  renderHeaderAdmin();
+  renderToolbar();
+  renderCalendar();
+  renderAdminPanels();
+}
+
+/* ---------------- admin login ---------------- */
+function renderHeaderAdmin(){
+  const area = document.getElementById("adminArea");
+  area.innerHTML = "";
+  if(state.isAdmin){
+    const badge = document.createElement("span");
+    badge.className = "admin-badge";
+    badge.textContent = "管理者モード";
+    const out = document.createElement("button");
+    out.className = "btn-ghost";
+    out.textContent = "ログアウト";
+    out.style.marginLeft = "8px";
+    out.onclick = ()=>{ state.isAdmin=false; renderAll(); };
+    area.appendChild(badge); area.appendChild(out);
+  } else {
+    const box = document.createElement("div");
+    box.className = "login-box";
+    box.innerHTML = `<input type="password" id="pinInput" placeholder="管理者PIN">`;
+    const btn = document.createElement("button");
+    btn.className = "btn-admin";
+    btn.textContent = "管理者ログイン";
+    btn.onclick = ()=>{
+      const v = document.getElementById("pinInput").value;
+      if(v === state.adminPin){ state.isAdmin = true; renderAll(); }
+      else alert("PINが違います");
+    };
+    box.appendChild(btn);
+    area.appendChild(box);
+  }
+}
+
+/* ---------------- toolbar ---------------- */
+function renderToolbar(){
+  const tb = document.getElementById("toolbar");
+  tb.innerHTML = "";
+  if(!state.isAdmin) return;
+
+  const genBtn = document.createElement("button");
+  genBtn.className = "btn-admin";
+  genBtn.textContent = "いつもの予定を今月に追加";
+  genBtn.onclick = generateFromTemplate;
+  tb.appendChild(genBtn);
+
+  const addBtn = document.createElement("button");
+  addBtn.className = "btn-primary";
+  addBtn.textContent = "＋ 予定を追加";
+  addBtn.onclick = openAddClassModal;
+  tb.appendChild(addBtn);
+
+  const exportBtn = document.createElement("button");
+  exportBtn.className = "btn-primary";
+  exportBtn.textContent = "この月をCSVエクスポート";
+  exportBtn.onclick = exportCSV;
+  tb.appendChild(exportBtn);
+}
+
+/* ---------------- template generation ---------------- */
+async function generateFromTemplate(){
+  const [y, mo] = state.month.split("-").map(Number);
+  const n = daysInMonth(y, mo);
+  const existingKeys = new Set(state.classes.map(c=>`${c.date}|${c.start}|${c.label}`));
+  const additions = [];
+
+  // count nth-occurrence of each weekday for the nth-Sunday rule
+  const dowCount = {};
+  for(let d=1; d<=n; d++){
+    const dow = new Date(y, mo-1, d).getDay();
+    dowCount[dow] = (dowCount[dow]||0) + 1;
+
+    WEEKLY_TEMPLATE.filter(t=>t.dow===dow).forEach(t=>{
+      const date = dateKey(y, mo, d);
+      const key = `${date}|${t.start}|${t.label}`;
+      if(!existingKeys.has(key)) additions.push({ id: uid(), date, start: t.start, label: t.label });
+    });
+
+    if(dow === 0){
+      NTH_SUNDAY_TEMPLATE.filter(t=>t.nth===dowCount[0]).forEach(t=>{
+        const date = dateKey(y, mo, d);
+        const key = `${date}|${t.start}|${t.label}`;
+        if(!existingKeys.has(key)) additions.push({ id: uid(), date, start: t.start, label: t.label });
+      });
+    }
+  }
+
+  if(additions.length === 0){ alert("追加できる予定はありませんでした（すでに登録済みです）"); return; }
+  state.classes = [...state.classes, ...additions];
+  await saveClasses();
+  renderCalendar();
+  alert(`${additions.length}件の予定を追加しました`);
+}
+
+/* ---------------- calendar ---------------- */
+function renderCalendar(){
+  const head = document.getElementById("calHead");
+  head.innerHTML = DOW.map(d=>`<th>${d}</th>`).join("");
+
+  const body = document.getElementById("calBody");
+  body.innerHTML = "";
+
+  const [y, mo] = state.month.split("-").map(Number);
+  const first = new Date(y, mo-1, 1);
+  const startOffset = first.getDay();
+  const n = daysInMonth(y, mo);
+
+  const byDate = {};
+  state.classes.forEach(c=>{ (byDate[c.date] = byDate[c.date] || []).push(c); });
+  Object.values(byDate).forEach(arr=>arr.sort((a,b)=>a.start.localeCompare(b.start)));
+
+  const cells = [];
+  for(let i=0;i<startOffset;i++) cells.push(null);
+  for(let d=1; d<=n; d++) cells.push(d);
+  while(cells.length % 7 !== 0) cells.push(null);
+
+  for(let row=0; row<cells.length/7; row++){
+    const tr = document.createElement("tr");
+    for(let col=0; col<7; col++){
+      const d = cells[row*7+col];
+      const td = document.createElement("td");
+      if(d === null){
+        td.className = "empty";
+      } else {
+        const dateStr = dateKey(y, mo, d);
+        const dayClasses = byDate[dateStr] || [];
+        const chipsHtml = dayClasses.map(c=>{
+          const confirmed = !!state.confirmed[c.id];
+          const delBtn = state.isAdmin ? `<span class="chip-del" data-cid="${c.id}" title="この予定を削除">✕</span>` : "";
+          return `<div class="session-chip" data-cid="${c.id}">${confirmed?'<span class="lock">🔒</span>':''}<span class="chip-label">${c.start} ${escapeHtml(c.label)}</span>${delBtn}</div>`;
+        }).join("");
+        td.innerHTML = `<div class="daynum">${d}</div><div class="sessions">${chipsHtml}</div>`;
+        td.querySelectorAll(".session-chip .chip-label, .session-chip .lock").forEach(part=>{
+          part.addEventListener("click",(e)=>{ e.stopPropagation(); openClassModal(part.closest(".session-chip").dataset.cid); });
+        });
+        td.querySelectorAll(".chip-del").forEach(x=>{
+          x.addEventListener("click", async (e)=>{
+            e.stopPropagation();
+            const cid = x.dataset.cid;
+            const cls = state.classes.find(c=>c.id===cid);
+            if(!cls) return;
+            if(!confirm(`${cls.start} ${cls.label} を削除しますか？出欠記録も失われます。`)) return;
+            state.classes = state.classes.filter(c=>c.id!==cid);
+            delete state.attendance[cid];
+            delete state.confirmed[cid];
+            await saveClasses(); await saveAttendance(); await saveConfirmed();
+            renderCalendar();
+          });
+        });
+        td.addEventListener("click", ()=>{
+          if(dayClasses.length===0 && state.isAdmin) openAddClassModal(dateStr);
+          else if(dayClasses.length===1) openClassModal(dayClasses[0].id);
+        });
+      }
+      tr.appendChild(td);
+    }
+    body.appendChild(tr);
+  }
+}
+
+/* ---------------- add class modal ---------------- */
+function openAddClassModal(presetDate){
+  const root = document.getElementById("modalRoot");
+  const [y, mo] = state.month.split("-").map(Number);
+  const defDate = presetDate || dateKey(y, mo, 1);
+  root.innerHTML = `
+    <div class="modal-bg" id="modalBg">
+      <div class="modal">
+        <h2>予定を追加</h2>
+        <div class="form-row">
+          <label style="flex:1;">日付<br><input type="date" id="addDate" value="${defDate}"></label>
+        </div>
+        <div class="form-row">
+          <label style="flex:1;">開始時刻<br><input type="time" id="addStart" value="14:00"></label>
+        </div>
+        <div class="form-row">
+          <label style="flex:1;">クラス名<br><input type="text" id="addLabel" placeholder="例：気の講座"></label>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-ghost" id="cancelAdd">キャンセル</button>
+          <button class="btn-primary" id="confirmAdd">追加する</button>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById("modalBg").onclick = (e)=>{ if(e.target.id==="modalBg") root.innerHTML=""; };
+  document.getElementById("cancelAdd").onclick = ()=>{ root.innerHTML=""; };
+  document.getElementById("confirmAdd").onclick = async ()=>{
+    const date = document.getElementById("addDate").value;
+    const start = document.getElementById("addStart").value;
+    const label = document.getElementById("addLabel").value.trim();
+    if(!date || !start || !label){ alert("すべて入力してください"); return; }
+    state.classes.push({ id: uid(), date, start, label });
+    await saveClasses();
+    root.innerHTML = "";
+    renderCalendar();
+  };
+}
+
+/* ---------------- class attendance modal ---------------- */
+function openClassModal(classId){
+  const root = document.getElementById("modalRoot");
+  const cls = state.classes.find(c=>c.id===classId);
+  if(!cls){ root.innerHTML=""; return; }
+  const confirmed = !!state.confirmed[classId];
+  const marks = state.attendance[classId] || {};
+
+  const listHtml = state.participants.length === 0
+    ? `<div class="empty-note">参加者が登録されていません。管理者ログイン後、下の「参加者管理」から追加してください。</div>`
+    : `<ul class="plist">` + sortedParticipants(state.participants).map(p=>{
+        const mark = marks[p.id];
+        const disabled = confirmed && !state.isAdmin;
+        return `<li>
+          <span class="pname"><span class="rank-badge ${RANK_INFO[p.rank].cls}">${RANK_INFO[p.rank].color}</span>${escapeHtml(p.name)}</span>
+          <span class="marks">
+            <button class="mark-btn present ${mark==='present'?'active':''}" ${disabled?'disabled':''} data-pid="${p.id}" data-val="present">出席</button>
+            <button class="mark-btn absent ${mark==='absent'?'active':''}" ${disabled?'disabled':''} data-pid="${p.id}" data-val="absent">欠席</button>
+          </span>
+        </li>`;
+      }).join("") + `</ul>`;
+
+  const [y,mo,d] = cls.date.split("-").map(Number);
+  const dow = DOW[new Date(y,mo-1,d).getDay()];
+
+  root.innerHTML = `
+    <div class="modal-bg" id="modalBg">
+      <div class="modal">
+        <h2>${mo}月${d}日（${dow}）${cls.start}〜 ${escapeHtml(cls.label)}</h2>
+        <div class="sub">${confirmed ? "この稽古は確定済みです" + (state.isAdmin ? "（管理者は変更・解除できます）" : "") : "出席・欠席を選んでください。あとから何度でも変更できます。"}</div>
+        ${listHtml}
+        <div class="modal-actions">
+          ${state.isAdmin ? `<button class="btn-admin" id="toggleConfirmBtn">${confirmed ? "確定を解除" : "この稽古の参加者を確定する"}</button>` : ""}
+          ${state.isAdmin ? `<button class="btn-danger" id="deleteClassBtn">この予定を削除</button>` : ""}
+          <button class="btn-ghost" id="closeModalBtn">閉じる</button>
+        </div>
+      </div>
+    </div>`;
+
+  document.getElementById("closeModalBtn").onclick = ()=>{ root.innerHTML=""; };
+  document.getElementById("modalBg").onclick = (e)=>{ if(e.target.id==="modalBg") root.innerHTML=""; };
+
+  root.querySelectorAll(".mark-btn").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      const pid = btn.dataset.pid, val = btn.dataset.val;
+      state.attendance[classId] = state.attendance[classId] || {};
+      state.attendance[classId][pid] = val;
+      await saveAttendance();
+      openClassModal(classId);
+    });
+  });
+
+  const cbtn = document.getElementById("toggleConfirmBtn");
+  if(cbtn){
+    cbtn.addEventListener("click", async ()=>{
+      if(confirmed) delete state.confirmed[classId];
+      else state.confirmed[classId] = true;
+      await saveConfirmed();
+      renderCalendar();
+      openClassModal(classId);
+    });
+  }
+  const dbtn = document.getElementById("deleteClassBtn");
+  if(dbtn){
+    dbtn.addEventListener("click", async ()=>{
+      if(!confirm("この予定を削除しますか？出欠記録も失われます。")) return;
+      state.classes = state.classes.filter(c=>c.id!==classId);
+      delete state.attendance[classId];
+      delete state.confirmed[classId];
+      await saveClasses(); await saveAttendance(); await saveConfirmed();
+      root.innerHTML = "";
+      renderCalendar();
+    });
+  }
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+/* ---------------- admin panels (participants, rates, pin, totals) ---------------- */
+function renderAdminPanels(){
+  const wrap = document.getElementById("adminPanels");
+  wrap.innerHTML = "";
+  if(!state.isAdmin) return;
+
+  const totalPanel = document.createElement("div");
+  const { total, byRank } = computeMonthTotals();
+  totalPanel.className = "totalbar";
+  totalPanel.innerHTML = `
+    <div>
+      <div style="font-size:12px;color:#CBD6C2;">今月の支払合計（管理者のみ表示）</div>
+      <div class="amt">¥${total.toLocaleString()}</div>
+    </div>
+    <div style="text-align:right;font-size:12px;color:#CBD6C2;">
+      <div>${RANK_INFO[1].color}（${RANK_INFO[1].label}）延べ${byRank[1].count}名 ¥${byRank[1].amount.toLocaleString()}</div>
+      <div>${RANK_INFO[2].color}（${RANK_INFO[2].label}）延べ${byRank[2].count}名 ¥${byRank[2].amount.toLocaleString()}</div>
+      <div>${RANK_INFO[3].color}（${RANK_INFO[3].label}）延べ${byRank[3].count}名 ¥${byRank[3].amount.toLocaleString()}</div>
+    </div>`;
+  wrap.appendChild(totalPanel);
+
+  const satTotal = computeSaturdayTotal();
+  const satPanel = document.createElement("div");
+  satPanel.className = "totalbar";
+  satPanel.style.background = "#4A5548";
+  satPanel.innerHTML = `
+    <div>
+      <div style="font-size:12px;color:#D8DECF;">土曜日のみの参加費合計</div>
+      <div class="amt">¥${satTotal.total.toLocaleString()}</div>
+    </div>
+    <div style="text-align:right;font-size:12px;color:#D8DECF;">
+      <div>${RANK_INFO[1].color}（${RANK_INFO[1].label}）延べ${satTotal.byRank[1].count}名 ¥${satTotal.byRank[1].amount.toLocaleString()}</div>
+      <div>${RANK_INFO[2].color}（${RANK_INFO[2].label}）延べ${satTotal.byRank[2].count}名 ¥${satTotal.byRank[2].amount.toLocaleString()}</div>
+      <div>${RANK_INFO[3].color}（${RANK_INFO[3].label}）延べ${satTotal.byRank[3].count}名 ¥${satTotal.byRank[3].amount.toLocaleString()}</div>
+    </div>`;
+  wrap.appendChild(satPanel);
+
+
+  const pPanel = document.createElement("div");
+  pPanel.className = "panel";
+  pPanel.innerHTML = `<h3>参加者管理</h3>
+    <div class="form-row">
+      <input type="text" id="newName" placeholder="お名前">
+      <input type="text" id="newKana" placeholder="ふりがな（カタカナ・任意、並べ替えに使用）">
+      <select id="newRank">
+        <option value="1">ランク1（赤）</option>
+        <option value="2">ランク2（青）</option>
+        <option value="3">ランク3（黄）</option>
+      </select>
+      <button class="btn-admin" id="addParticipantBtn">追加</button>
+    </div>
+    <div class="plain-list" id="participantRows"></div>`;
+  wrap.appendChild(pPanel);
+
+  const rows = pPanel.querySelector("#participantRows");
+  if(state.participants.length===0){
+    rows.innerHTML = `<div class="empty-note">参加者がまだいません。</div>`;
+  } else {
+    sortedParticipants(state.participants).forEach(p=>{
+      const row = document.createElement("div");
+      row.className = "row";
+      row.innerHTML = `
+        <span class="rank-badge ${RANK_INFO[p.rank].cls}">${RANK_INFO[p.rank].color}</span>
+        <span class="name">${escapeHtml(p.name)}</span>
+        <select data-id="${p.id}" class="rankSelect">
+          <option value="1" ${p.rank==1?'selected':''}>ランク1（赤）</option>
+          <option value="2" ${p.rank==2?'selected':''}>ランク2（青）</option>
+          <option value="3" ${p.rank==3?'selected':''}>ランク3（黄）</option>
+        </select>
+        <button class="btn-danger" data-id="${p.id}" data-action="del">削除</button>`;
+      rows.appendChild(row);
+    });
+  }
+
+  pPanel.querySelector("#addParticipantBtn").onclick = async ()=>{
+    const nameInput = pPanel.querySelector("#newName");
+    const kanaInput = pPanel.querySelector("#newKana");
+    const rankSel = pPanel.querySelector("#newRank");
+    const name = nameInput.value.trim();
+    const kana = kanaInput.value.trim();
+    if(!name) return;
+    state.participants.push({ id: uid(), name, kana, rank: Number(rankSel.value) });
+    await saveParticipants();
+    renderAdminPanels();
+  };
+  rows.querySelectorAll(".rankSelect").forEach(sel=>{
+    sel.addEventListener("change", async ()=>{
+      const p = state.participants.find(pp=>pp.id===sel.dataset.id);
+      if(p){ p.rank = Number(sel.value); await saveParticipants(); renderAdminPanels(); }
+    });
+  });
+  rows.querySelectorAll("[data-action='del']").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      if(!confirm("この参加者を削除しますか？")) return;
+      state.participants = state.participants.filter(p=>p.id!==btn.dataset.id);
+      await saveParticipants();
+      renderAdminPanels();
+      renderCalendar();
+    });
+  });
+
+  const ratePanel = document.createElement("div");
+  ratePanel.className = "panel";
+  ratePanel.innerHTML = `<h3>1回あたりの支払額（会員には表示されません）</h3>
+    <div class="form-row">
+      <label style="flex:1;min-width:120px;">
+        <span class="rank-badge r1">赤</span>
+        <input type="number" id="rate1" value="${state.rankRates[1]}" style="width:100%;margin-top:4px;">
+      </label>
+      <label style="flex:1;min-width:120px;">
+        <span class="rank-badge r2">青</span>
+        <input type="number" id="rate2" value="${state.rankRates[2]}" style="width:100%;margin-top:4px;">
+      </label>
+      <label style="flex:1;min-width:120px;">
+        <span class="rank-badge r3">黄</span>
+        <input type="number" id="rate3" value="${state.rankRates[3]}" style="width:100%;margin-top:4px;">
+      </label>
+    </div>
+    <button class="btn-admin" id="saveRatesBtn">単価を保存</button>`;
+  wrap.appendChild(ratePanel);
+  ratePanel.querySelector("#saveRatesBtn").onclick = async ()=>{
+    state.rankRates[1] = Number(ratePanel.querySelector("#rate1").value)||0;
+    state.rankRates[2] = Number(ratePanel.querySelector("#rate2").value)||0;
+    state.rankRates[3] = Number(ratePanel.querySelector("#rate3").value)||0;
+    await saveRates();
+    renderAdminPanels();
+    alert("単価を保存しました");
+  };
+
+  const pinPanel = document.createElement("div");
+  pinPanel.className = "panel";
+  pinPanel.innerHTML = `<h3>管理者PINの変更</h3>
+    <div class="rate-hidden-note" style="margin-bottom:8px;">簡易的な保護です。第三者に知られないPINに変更してください。</div>
+    <div class="form-row">
+      <input type="text" id="newPin" placeholder="新しいPIN">
+      <button class="btn-admin" id="savePinBtn">変更する</button>
+    </div>`;
+  wrap.appendChild(pinPanel);
+  pinPanel.querySelector("#savePinBtn").onclick = async ()=>{
+    const v = pinPanel.querySelector("#newPin").value.trim();
+    if(!v) return;
+    state.adminPin = v;
+    await savePin();
+    alert("PINを変更しました");
+    pinPanel.querySelector("#newPin").value = "";
+  };
+}
+
+/* ---------------- totals & CSV ---------------- */
+function computeMonthTotals(){
+  const byRank = {1:{count:0,amount:0},2:{count:0,amount:0},3:{count:0,amount:0}};
+  Object.values(state.attendance).forEach(classMarks=>{
+    Object.entries(classMarks).forEach(([pid,v])=>{
+      if(v!=="present") return;
+      const p = state.participants.find(pp=>pp.id===pid);
+      if(!p) return;
+      byRank[p.rank].count += 1;
+      byRank[p.rank].amount += (Number(state.rankRates[p.rank])||0);
+    });
+  });
+  const total = byRank[1].amount + byRank[2].amount + byRank[3].amount;
+  return { total, byRank };
+}
+
+function computeSaturdayTotal(){
+  const satClassIds = new Set(
+    state.classes.filter(c=>{
+      const [y,mo,d] = c.date.split("-").map(Number);
+      return new Date(y, mo-1, d).getDay() === 6;
+    }).map(c=>c.id)
+  );
+  const byRank = {1:{count:0,amount:0},2:{count:0,amount:0},3:{count:0,amount:0}};
+  Object.entries(state.attendance).forEach(([classId, classMarks])=>{
+    if(!satClassIds.has(classId)) return;
+    Object.entries(classMarks).forEach(([pid,v])=>{
+      if(v!=="present") return;
+      const p = state.participants.find(pp=>pp.id===pid);
+      if(!p) return;
+      byRank[p.rank].count += 1;
+      byRank[p.rank].amount += (Number(state.rankRates[p.rank])||0);
+    });
+  });
+  const total = byRank[1].amount + byRank[2].amount + byRank[3].amount;
+  return { total, byRank };
+}
+
+function exportCSV(){
+  const rows = [["日付","曜日","クラス名","開始時刻","参加者名","ランク","出欠","単価","確定"]];
+  const sorted = [...state.classes].sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));
+
+  sorted.forEach(cls=>{
+    const marks = state.attendance[cls.id];
+    if(!marks) return;
+    const [y,mo,d] = cls.date.split("-").map(Number);
+    const dow = DOW[new Date(y,mo-1,d).getDay()];
+    const confirmed = state.confirmed[cls.id] ? "確定" : "未確定";
+    Object.entries(marks).forEach(([pid,v])=>{
+      const p = state.participants.find(pp=>pp.id===pid);
+      if(!p) return;
+      const rate = v==="present" ? (Number(state.rankRates[p.rank])||0) : 0;
+      rows.push([cls.date, dow, cls.label, cls.start, p.name, RANK_INFO[p.rank].color, v==="present"?"出席":"欠席", rate, confirmed]);
+    });
+  });
+
+  const { total, byRank } = computeMonthTotals();
+  rows.push([]);
+  rows.push(["赤 延べ人数", byRank[1].count, "赤 小計", byRank[1].amount]);
+  rows.push(["青 延べ人数", byRank[2].count, "青 小計", byRank[2].amount]);
+  rows.push(["黄 延べ人数", byRank[3].count, "黄 小計", byRank[3].amount]);
+  rows.push(["合計金額", total]);
+
+  const sat = computeSaturdayTotal();
+  rows.push([]);
+  rows.push(["--- 土曜日のみ ---"]);
+  rows.push(["赤 延べ人数", sat.byRank[1].count, "赤 小計", sat.byRank[1].amount]);
+  rows.push(["青 延べ人数", sat.byRank[2].count, "青 小計", sat.byRank[2].amount]);
+  rows.push(["黄 延べ人数", sat.byRank[3].count, "黄 小計", sat.byRank[3].amount]);
+  rows.push(["土曜日合計金額", sat.total]);
+
+  const csv = rows.map(r => r.map(csvEscape).join(",")).join("\r\n");
+  const blob = new Blob(["\uFEFF"+csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `出欠集計_${state.month}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function csvEscape(v){
+  const s = String(v ?? "");
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+}
+
+init();
+</script>
+</body>
+</html>
