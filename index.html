@@ -474,7 +474,7 @@ function openClassModal(classId){
   document.getElementById("modalBg").onclick = (e)=>{ if(e.target.id==="modalBg") root.innerHTML=""; };
 
   root.querySelectorAll(".mark-btn").forEach(btn=>{
-    btn.addEventListener("click", async ()=>{
+    btn.addEventListener("click", ()=>{
       const pid = btn.dataset.pid;
       state.attendance[classId] = state.attendance[classId] || {};
       if(state.attendance[classId][pid] === "present"){
@@ -482,8 +482,8 @@ function openClassModal(classId){
       } else {
         state.attendance[classId][pid] = "present";
       }
-      await saveAttendance();
-      openClassModal(classId);
+      openClassModal(classId); // 先に画面を更新
+      saveAttendance().then(ok=>{ if(!ok) alert("保存に失敗しました。もう一度お試しください。"); });
     });
   });
 
