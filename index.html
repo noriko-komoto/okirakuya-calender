@@ -523,7 +523,7 @@ function renderAdminPanels(){
   totalPanel.className = "totalbar";
   totalPanel.innerHTML = `
     <div>
-      <div style="font-size:12px;color:#CBD6C2;">今月の支払合計（管理者のみ表示）</div>
+      <div style="font-size:12px;color:#CBD6C2;">今月の支払合計（日曜日を除く・管理者のみ表示）</div>
       <div class="amt">¥${total.toLocaleString()}</div>
     </div>
     <div style="text-align:right;font-size:12px;color:#CBD6C2;">
@@ -662,8 +662,15 @@ function renderAdminPanels(){
 
 /* ---------------- totals & CSV ---------------- */
 function computeMonthTotals(){
+  const excludedIds = new Set(
+    state.classes.filter(c=>{
+      const [y,mo,d] = c.date.split("-").map(Number);
+      return new Date(y, mo-1, d).getDay() === 0; // 日曜日は集計対象外
+    }).map(c=>c.id)
+  );
   const byRank = {1:{count:0,amount:0},2:{count:0,amount:0},3:{count:0,amount:0}};
-  Object.values(state.attendance).forEach(classMarks=>{
+  Object.entries(state.attendance).forEach(([classId, classMarks])=>{
+    if(excludedIds.has(classId)) return;
     Object.entries(classMarks).forEach(([pid,v])=>{
       if(v!=="present") return;
       const p = state.participants.find(pp=>pp.id===pid);
@@ -721,7 +728,7 @@ function exportCSV(){
   rows.push(["赤 延べ人数", byRank[1].count, "赤 小計", byRank[1].amount]);
   rows.push(["青 延べ人数", byRank[2].count, "青 小計", byRank[2].amount]);
   rows.push(["黄 延べ人数", byRank[3].count, "黄 小計", byRank[3].amount]);
-  rows.push(["合計金額", total]);
+  rows.push(["合計金額（日曜日を除く）", total]);
 
   const sat = computeSaturdayTotal();
   rows.push([]);
