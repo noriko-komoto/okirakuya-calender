@@ -445,8 +445,7 @@ function openClassModal(classId){
         return `<li>
           <span class="pname"><span class="rank-badge ${RANK_INFO[p.rank].cls}">${RANK_INFO[p.rank].color}</span>${escapeHtml(p.name)}</span>
           <span class="marks">
-            <button class="mark-btn present ${mark==='present'?'active':''}" ${disabled?'disabled':''} data-pid="${p.id}" data-val="present">出席</button>
-            <button class="mark-btn absent ${mark==='absent'?'active':''}" ${disabled?'disabled':''} data-pid="${p.id}" data-val="absent">欠席</button>
+            <button class="mark-btn present ${mark==='present'?'active':''}" ${disabled?'disabled':''} data-pid="${p.id}">出席</button>
           </span>
         </li>`;
       }).join("") + `</ul>`;
@@ -458,7 +457,7 @@ function openClassModal(classId){
     <div class="modal-bg" id="modalBg">
       <div class="modal">
         <h2>${mo}月${d}日（${dow}）${cls.start}〜 ${escapeHtml(cls.label)}</h2>
-        <div class="sub">${confirmed ? "この稽古は確定済みです" + (state.isAdmin ? "（管理者は変更・解除できます）" : "") : "出席・欠席を選んでください。あとから何度でも変更できます。"}</div>
+        <div class="sub">${confirmed ? "この稽古は確定済みです" + (state.isAdmin ? "（管理者は変更・解除できます）" : "") : "出席した人だけ「出席」を押してください。もう一度押すと取り消せます。"}</div>
         ${listHtml}
         <div class="modal-actions">
           ${state.isAdmin ? `<button class="btn-admin" id="toggleConfirmBtn">${confirmed ? "確定を解除" : "この稽古の参加者を確定する"}</button>` : ""}
@@ -473,9 +472,13 @@ function openClassModal(classId){
 
   root.querySelectorAll(".mark-btn").forEach(btn=>{
     btn.addEventListener("click", async ()=>{
-      const pid = btn.dataset.pid, val = btn.dataset.val;
+      const pid = btn.dataset.pid;
       state.attendance[classId] = state.attendance[classId] || {};
-      state.attendance[classId][pid] = val;
+      if(state.attendance[classId][pid] === "present"){
+        delete state.attendance[classId][pid];
+      } else {
+        state.attendance[classId][pid] = "present";
+      }
       await saveAttendance();
       openClassModal(classId);
     });
