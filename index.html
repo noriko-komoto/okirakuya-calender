@@ -174,9 +174,11 @@ function sortedParticipants(list){
 
 /* ---------------- load ---------------- */
 async function loadGlobal(){
-  const p = await sGet("participants");
-  const r = await sGet("rankRates");
-  const pin = await sGet("adminPin");
+  const [p, r, pin] = await Promise.all([
+    sGet("participants"),
+    sGet("rankRates"),
+    sGet("adminPin"),
+  ]);
   if(p && p.length > 0){
     let changed = false;
     state.participants = p.map(person => {
@@ -192,9 +194,11 @@ async function loadGlobal(){
   state.adminPin = pin || state.adminPin;
 }
 async function loadMonth(mKey){
-  const c = await sGet("classes-"+mKey);
-  const a = await sGet("attendance-"+mKey);
-  const cf = await sGet("confirmed-"+mKey);
+  const [c, a, cf] = await Promise.all([
+    sGet("classes-"+mKey),
+    sGet("attendance-"+mKey),
+    sGet("confirmed-"+mKey),
+  ]);
   state.classes = c || [];
   state.attendance = a || {};
   state.confirmed = cf || {};
@@ -222,8 +226,7 @@ async function init(){
     renderAll();
   });
 
-  await loadGlobal();
-  await loadMonth(state.month);
+  await Promise.all([loadGlobal(), loadMonth(state.month)]);
   renderAll();
 }
 
